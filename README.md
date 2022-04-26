@@ -1,3 +1,1 @@
-pip install flask
-pip install flask_pymongo
-pip install flask_ngrok
+pip install flask flask_pymongo flask_ngrok
