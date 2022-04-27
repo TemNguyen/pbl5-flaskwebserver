@@ -4,10 +4,44 @@ from bson.objectid import ObjectId
 from flask import jsonify, request
 import threading, socket, struct, io
 from _thread import *
-import numpy
+import numpy as np
 from Response import Response
+from PIL import Image
 
 dic = dict()
+
+def thread_client(connection):
+    conn = connection.makefile('rb')
+    while True:
+        cnn = conn.read(4)
+        if cnn != b'':
+            image_len = struct.unpack('<L', cnn)[0]
+
+            image_stream = io.BytesIO()
+            image_stream.write(conn.read(image_len))
+
+            image_stream.seek(0)
+            image = Image.open(image_stream)
+            np_arr = np.array(image)
+            print(np_arr.shape)
+            # print('Image is %dx%d' % image.size)
+            # image.save('abc.jpeg')
+
+            # Face detection module
+
+            # async: Call api to save data
+            resp = Response('save_data', 'Luu du lieu nhan dang')
+            # start_new_thread(call_api, ('post', resp))
+
+            # # async: send back to client
+            if face_detection(resp) == True:
+                resp = Response('success', 'mo_cua')
+                start_new_thread(send_back, (connection, resp))
+            else:
+                resp = Response('failure', 'nhan_dang_sai')
+                start_new_thread(send_back, (connection, resp))
+        else:
+            break
 
 #init tcp socket server
 def tcp_server():
@@ -17,30 +51,8 @@ def tcp_server():
     while True:
         connection, _ = server_socket.accept()
         dic['connection'] = connection
-        # cnn = connection.read(4)
-        cnn = connection.recv(1024)
-        # connection.sendall(str.encode('success'))
-        if cnn != b'':
-            # image_len = struct.unpack('<L', cnn)[0]
-
-            # image_stream = io.BytesIO()
-            # image_stream.write(connection.read(image_len))
-
-            # image_stream.seek(0)
-            
-            # Face detection module
-
-            # async: Call api to save data
-            resp = Response('save_data', 'Luu du lieu nhan dang')
-            start_new_thread(call_api, ('post', resp))
-
-            # async: send back to client
-            if face_detection(resp) == True:
-                resp = Response('success', 'mo_cua')
-                start_new_thread(send_back, (connection, resp))
-            else:
-                resp = Response('failure', 'nhan_dang_sai')
-                start_new_thread(send_back, (connection, resp))
+        if connection:
+            start_new_thread(thread_client, (connection, ))
 
 # Call api
 def call_api(method, response):
