@@ -5,3 +5,6 @@ class Response:
     
     def show(self) -> str:
         print(self.code, self.message)
+    
+    def encode(self) -> bytes:
+        return str.encode(self.code + ' ' + self.message)

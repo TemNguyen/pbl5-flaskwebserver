@@ -7,7 +7,7 @@ from _thread import *
 import numpy
 from Response import Response
 
-connection = socket.socket()
+dic = dict()
 
 #init tcp socket server
 def tcp_server():
@@ -16,9 +16,10 @@ def tcp_server():
     server_socket.listen(0)
     while True:
         connection, _ = server_socket.accept()
+        dic['connection'] = connection
         # cnn = connection.read(4)
         cnn = connection.recv(1024)
-
+        # connection.sendall(str.encode('success'))
         if cnn != b'':
             # image_len = struct.unpack('<L', cnn)[0]
 
@@ -35,10 +36,10 @@ def tcp_server():
 
             # async: send back to client
             if face_detection(resp) == True:
-                resp = Response('success', 'mo cua')
+                resp = Response('success', 'mo_cua')
                 start_new_thread(send_back, (connection, resp))
             else:
-                resp = Response('failure', 'nhan dang sai')
+                resp = Response('failure', 'nhan_dang_sai')
                 start_new_thread(send_back, (connection, resp))
 
 # Call api
@@ -55,23 +56,27 @@ def face_detection(resp):
     return True
 
 # Send back to client
-def send_back(connection, resp):
-    connection.sendall(str.encode(str(resp.show())))
+def send_back(connection: socket, resp: Response):
+    connection.sendall(resp.encode())
 
 # Example flask api
 #GET: /users
 @app.route('/users')
 def users():
+    conn = dic.get('connection')
     resp = Response('success', 'mo cua')
-    start_new_thread(send_back, (connection, resp))
+    start_new_thread(send_back, (conn, resp))
     users = mongo.db.User.find()
     return dumps(users)
 
-
 #GET: /users/1
-app.route('/users/<id>')
+@app.route('/users/<id>')
 def user(id):
+    conn = dic.get('connection')
+    resp = Response('fail', 'dong cua')
+    start_new_thread(send_back, (conn, resp))
     user = mongo.db.User.find_one({'_id': ObjectId(id)})
+    print(user)
     response = dumps(user)
     return response
 
