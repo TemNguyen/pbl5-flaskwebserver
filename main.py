@@ -74,7 +74,7 @@ def send_back(connection: socket, resp: Response):
 # Example flask api
 @app.route('/')
 def home():
-    return jsonify('User added successfully!')
+    return jsonify('Server running successfully!')
     
 #GET: /users
 @app.route('/users')
@@ -112,4 +112,4 @@ if __name__ == "__main__":
     t = threading.Thread(target=tcp_server)
     t.daemon = True
     t.start()
-    app.run(host="0.0.0.0", port=80)
+    app.run(host="0.0.0.0", port=5000)
