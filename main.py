@@ -75,26 +75,36 @@ def send_back(connection: socket, resp: Response):
 @app.route('/')
 def home():
     return jsonify('Server running successfully!')
-    
+
 #GET: /users
-@app.route('/users')
-def users():
+@app.route('/open')
+def open():
     conn = dic.get('connection')
     resp = Response('success', 'mo cua')
     start_new_thread(send_back, (conn, resp))
-    users = mongo.db.User.find()
-    return dumps(users)
+    return jsonify('Open the door successfully!')
+
+# #GET: /users
+# @app.route('/users')
+# def users():
+#     conn = dic.get('connection')
+#     resp = Response('success', 'mo cua')
+#     start_new_thread(send_back, (conn, resp))
+#     # users = mongo.db.User.find()
+#     # return dumps(users)
+#     return jsonify('Open the door successfully!')
 
 #GET: /users/1
-@app.route('/users/<id>')
-def user(id):
+@app.route('/close')
+def close():
     conn = dic.get('connection')
     resp = Response('fail', 'dong cua')
     start_new_thread(send_back, (conn, resp))
-    user = mongo.db.User.find_one({'_id': ObjectId(id)})
-    print(user)
-    response = dumps(user)
-    return response
+    # user = mongo.db.User.find_one({'_id': ObjectId(id)})
+    # print(user)
+    # response = dumps(user)
+    # return response
+    return jsonify('Close the door successfully!')
 
 #POST /create
 @app.route('/create', methods=['POST'])
