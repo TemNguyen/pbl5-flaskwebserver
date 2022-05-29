@@ -4,6 +4,7 @@ from Face.Inference.Facenet import Facenet
 from Face.Classifier.SVM import SVM
 from bson.objectid import ObjectId
 from pymongo import MongoClient
+from Response import Response
 from datetime import datetime
 import cloudinary.uploader
 from os.path import join
@@ -12,6 +13,7 @@ import numpy as np
 import cloudinary
 import requests
 import base64
+import socket
 import certifi
 import json
 import cv2
@@ -124,3 +126,8 @@ def save_feature_vector(id: str):
     list_user.update_one({"_id": ObjectId(id)}, {"$set": {"FeatureVector": vector}})
     # Update user
     return len(vector)
+
+############################## SEND TO RASPBERRY PI ##########################
+
+def send_back(connection: socket, resp: Response):
+    connection.sendall(resp.encode())
