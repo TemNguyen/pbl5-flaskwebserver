@@ -1,14 +1,19 @@
-from app import app, mongo
-from bson.json_util import dumps
-from bson.objectid import ObjectId
+from utils import recognition, save_recognition_history
 from flask import jsonify, request
-import threading, socket, struct, io
+from Response import Response
+from app import app, mongo
 from _thread import *
 import numpy as np
-from Response import Response
-from PIL import Image
+import threading
+import requests
+import socket
+import struct
+import base64
+import io
+
 
 dic = dict()
+
 
 def thread_client(connection):
     conn = connection.makefile('rb')
@@ -21,29 +26,35 @@ def thread_client(connection):
             image_stream.write(conn.read(image_len))
 
             image_stream.seek(0)
-            image = Image.open(image_stream)
-            np_arr = np.array(image)
-            print(np_arr.shape)
+
+            identity, distance = recognition(image_stream.read())
+            # image = Image.open(image_stream)
+            # np_arr = np.array(image)
+            # print(np_arr.shape)
             # print('Image is %dx%d' % image.size)
             # image.save('abc.jpeg')
 
             # Face detection module
 
             # async: Call api to save data
-            resp = Response('save_data', 'Luu du lieu nhan dang')
+            # resp = Response('save_data', 'Luu du lieu nhan dang')
             # start_new_thread(call_api, ('post', resp))
 
             # # async: send back to client
-            if face_detection(resp) == True:
+            if identity != "UNKNOWN":
                 resp = Response('success', 'mo_cua')
                 start_new_thread(send_back, (connection, resp))
             else:
                 resp = Response('failure', 'nhan_dang_sai')
                 start_new_thread(send_back, (connection, resp))
+            # Goi API luu user request
+            save_recognition_history(identity, image_stream.read())
         else:
             break
 
-#init tcp socket server
+# init tcp socket server
+
+
 def tcp_server():
     server_socket = socket.socket()
     server_socket.bind(('0.0.0.0', 9000))
@@ -55,6 +66,8 @@ def tcp_server():
             start_new_thread(thread_client, (connection, ))
 
 # Call api
+
+
 def call_api(method, response):
     # Create indentify history object
 
@@ -64,19 +77,27 @@ def call_api(method, response):
     pass
 
 # Call face detection module
+
+
 def face_detection(resp):
     return True
 
 # Send back to client
+
+
 def send_back(connection: socket, resp: Response):
     connection.sendall(resp.encode())
 
 # Example flask api
+
+
 @app.route('/')
 def home():
     return jsonify('Server running successfully!')
 
-#GET: /users
+# GET: /users
+
+
 @app.route('/open')
 def open():
     conn = dic.get('connection')
@@ -94,7 +115,9 @@ def open():
 #     # return dumps(users)
 #     return jsonify('Open the door successfully!')
 
-#GET: /users/1
+# GET: /users/1
+
+
 @app.route('/close')
 def close():
     conn = dic.get('connection')
@@ -107,6 +130,8 @@ def close():
     return jsonify('Close the door successfully!')
 
 #POST /create
+
+
 @app.route('/create', methods=['POST'])
 def create():
     _json = request.json
@@ -116,7 +141,8 @@ def create():
     id = mongo.db.User.insert_one({'name': _name, 'address': _address})
     response = jsonify('Create successfully')
     response.status_code = 200
-    return response    
+    return response
+
 
 if __name__ == "__main__":
     t = threading.Thread(target=tcp_server)
