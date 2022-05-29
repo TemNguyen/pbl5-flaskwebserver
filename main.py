@@ -2,13 +2,15 @@ from app import app, mongo
 from bson.json_util import dumps
 from bson.objectid import ObjectId
 from flask import jsonify, request
-import threading, socket, struct, io
 from _thread import *
-import numpy as np
 from Response import Response
-from PIL import Image
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+import threading, socket, struct, io
+import urllib.request, json
+import requests
 
 dic = dict()
+base_api_url = 'http://127.0.0.1:8000'
 
 def thread_client(connection):
     conn = connection.makefile('rb')
@@ -19,11 +21,12 @@ def thread_client(connection):
 
             image_stream = io.BytesIO()
             image_stream.write(conn.read(image_len))
-
+            
             image_stream.seek(0)
-            image = Image.open(image_stream)
-            np_arr = np.array(image)
-            print(np_arr.shape)
+
+            # image = Image.open(image_stream)
+            # np_arr = np.array(image)
+            # print(np_arr.shape)
             # print('Image is %dx%d' % image.size)
             # image.save('abc.jpeg')
 
@@ -74,40 +77,54 @@ def send_back(connection: socket, resp: Response):
 # Example flask api
 @app.route('/')
 def home():
-    return jsonify('Server running successfully!')
+    res = urllib.request.urlopen(base_api_url + '/user/6246d7fbe5065d8a35eb2dca')
+    data = res.read()
+    dict = json.loads(data)
+    return jsonify(dict['username'])
+
+# Test, bên mobile sẽ lo phần này
+@app.route('/login', methods=['post'])
+def login():
+    req = request.get_json()
+    #call login
+    user = mongo.db.user.find_one({'username': req['username'], 'password': req['password']})
+
+    if user:
+        access_token = create_access_token(identity=user['_id'])
+        return jsonify(access_token=access_token), 200
+    
+    return jsonify({'msg': 'The username or password is incorrect'}), 200
 
 #GET: /users
-@app.route('/open')
+@app.route('/open', methods=['GET'])
+@jwt_required()
 def open():
-    conn = dic.get('connection')
-    resp = Response('success', 'mo cua')
-    start_new_thread(send_back, (conn, resp))
-    return jsonify('Open the door successfully!')
+    user = mongo.db.user.find_one({'_id': get_jwt_identity()})
 
-# #GET: /users
-# @app.route('/users')
-# def users():
-#     conn = dic.get('connection')
-#     resp = Response('success', 'mo cua')
-#     start_new_thread(send_back, (conn, resp))
-#     # users = mongo.db.User.find()
-#     # return dumps(users)
-#     return jsonify('Open the door successfully!')
+    if user:
+        conn = dic.get('connection')
+        resp = Response('success', 'mo cua')
+        start_new_thread(send_back, (conn, resp))
+        return jsonify('Open the door successfully!'), 200
+    else:
+        return jsonify('User not found'), 200
 
-#GET: /users/1
 @app.route('/close')
+@jwt_required()
 def close():
-    conn = dic.get('connection')
-    resp = Response('fail', 'dong cua')
-    start_new_thread(send_back, (conn, resp))
-    # user = mongo.db.User.find_one({'_id': ObjectId(id)})
-    # print(user)
-    # response = dumps(user)
-    # return response
-    return jsonify('Close the door successfully!')
+    user = mongo.db.user.find_one({'_id': get_jwt_identity()})
+
+    if user:
+        conn = dic.get('connection')
+        resp = Response('fail', 'dong cua')
+        start_new_thread(send_back, (conn, resp))
+        return jsonify('Close the door successfully!')
+    else:
+        return jsonify('User not found'), 200
 
 #POST /create
 @app.route('/create', methods=['POST'])
+@jwt_required()
 def create():
     _json = request.json
     _name = _json['name']
