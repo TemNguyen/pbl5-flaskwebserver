@@ -4,6 +4,7 @@ from Face.Inference.Facenet import Facenet
 from Face.Classifier.SVM import SVM
 from bson.objectid import ObjectId
 from pymongo import MongoClient
+from datetime import datetime
 import cloudinary.uploader
 from os.path import join
 import urllib.request
@@ -61,11 +62,35 @@ def recognition(img: bytes):
     return identity, distance
 
 
+def save_img_to_cloudinary(img: str):
+    result = cloudinary.uploader.upload("data:image/jpeg;base64," + img, folder="userRequest")
+    url = result.get("url")
+    return url
+
+
+def save_recognition_history(userid: str, img: bytes):
+    # Bytes -> base64
+    img = base64.b64encode(img)
+    imgBS64 = img.decode("ascii")
+    img_url = save_img_to_cloudinary(imgBS64)
+    if userid != "UNKNOWN":
+        isVerify = "Yes"
+    else:
+        isVerify = "No"
+    user_history = {
+        "timestamps": str(datetime.now()),
+        "imageURi": img_url,
+        "isVerify": isVerify,
+        "userId": userid
+    }
+    requests.post(config["api_url"]+"history", json=user_history)
+
+
 ############################## SVM ##########################
 def retrain_svm():
     svm = SVM()
     train_acc, test_acc = svm.train()
-    print(train_acc, test_acc)
+    return train_acc, test_acc
 
 
 ############################## TRICH VECTOR DAC TRUNG ##########################
@@ -98,28 +123,4 @@ def save_feature_vector(id: str):
         vector.append(image_to_vector(img))
     list_user.update_one({"_id": ObjectId(id)}, {"$set": {"FeatureVector": vector}})
     # Update user
-    print(len(vector))
-
-
-def save_img_to_cloudinary(img: str):
-    result = cloudinary.uploader.upload("data:image/jpeg;base64," + img, folder="userRequest")
-    url = result.get("url")
-    return url
-
-
-def save_recognition_history(userid: str, img: bytes):
-    # Bytes -> base64
-    img = base64.b64encode(img)
-    imgBS64 = img.decode("ascii")
-    img_url = save_img_to_cloudinary(imgBS64)
-    if userid != "UNKNOWN":
-        isVerify = "Yes"
-    else:
-        isVerify = "No"
-    user_history = {
-        "timestamps": "string",
-        "imageURi": img_url,
-        "isVerify": isVerify,
-        "userId": userid
-    }
-    requests.post(config["api_url"], json=user_history)
+    return len(vector)

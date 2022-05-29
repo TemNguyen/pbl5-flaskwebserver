@@ -1,8 +1,8 @@
 {
-    "cluster": "mongodb+srv://teamDA:123@ngan.2a0oj.mongodb.net/pbl5?retryWrites=true&w=majority",
-    "cloud_name": "phuocleoceo",
-    "api_key": "248459192266867",
-    "api_secret": "DIWz2aJPxe9EDzgYFNADMG7VBiE",
+    "cluster": "",
+    "cloud_name": "",
+    "api_key": "",
+    "api_secret": "",
     "api_url": "",
     "jwt_secretkey": ""
 }

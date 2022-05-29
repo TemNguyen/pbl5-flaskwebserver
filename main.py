@@ -1,14 +1,12 @@
-from utils import recognition, save_recognition_history
+from utils import (recognition, save_recognition_history,
+                   mongo_2_json, save_feature_vector, retrain_svm)
 from flask import jsonify, request
 from Response import Response
-from app import app, mongo
+from app import app
 from _thread import *
-import numpy as np
 import threading
-import requests
 import socket
 import struct
-import base64
 import io
 
 
@@ -27,14 +25,8 @@ def thread_client(connection):
 
             image_stream.seek(0)
 
+            # Face recognition module
             identity, distance = recognition(image_stream.read())
-            # image = Image.open(image_stream)
-            # np_arr = np.array(image)
-            # print(np_arr.shape)
-            # print('Image is %dx%d' % image.size)
-            # image.save('abc.jpeg')
-
-            # Face detection module
 
             # async: Call api to save data
             # resp = Response('save_data', 'Luu du lieu nhan dang')
@@ -48,7 +40,8 @@ def thread_client(connection):
                 resp = Response('failure', 'nhan_dang_sai')
                 start_new_thread(send_back, (connection, resp))
             # Goi API luu user request
-            save_recognition_history(identity, image_stream.read())
+            start_new_thread(save_recognition_history, (identity, image_stream.read()))
+            # save_recognition_history(identity, image_stream.read())
         else:
             break
 
@@ -132,16 +125,29 @@ def close():
 #POST /create
 
 
-@app.route('/create', methods=['POST'])
-def create():
-    _json = request.json
-    _name = _json['name']
-    _address = _json['address']
+@app.route('/saveFeatureVector/<id>')
+def save_vector(id: str):
+    len_vector = save_feature_vector(id)
+    return jsonify(f'Save {len_vector} vector successfully!')
 
-    id = mongo.db.User.insert_one({'name': _name, 'address': _address})
-    response = jsonify('Create successfully')
-    response.status_code = 200
-    return response
+
+@app.route('/retrain')
+def retrain_model():
+    mongo_2_json()
+    train_acc, test_acc = retrain_svm()
+    return jsonify(f'Retrain SVM with {train_acc} and {test_acc}!')
+
+
+# @app.route('/create', methods=['POST'])
+# def create():
+#     _json = request.json
+#     _name = _json['name']
+#     _address = _json['address']
+
+#     id = mongo.db.User.insert_one({'name': _name, 'address': _address})
+#     response = jsonify('Create successfully')
+#     response.status_code = 200
+#     return response
 
 
 if __name__ == "__main__":
