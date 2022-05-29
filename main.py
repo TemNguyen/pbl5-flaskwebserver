@@ -9,9 +9,7 @@ import socket
 import struct
 import io
 
-
 dic = dict()
-
 
 def thread_client(connection):
     conn = connection.makefile('rb')
@@ -29,7 +27,7 @@ def thread_client(connection):
 
             # async: send back to client
             if identity != "UNKNOWN":
-                resp = Response('success', 'mo_cua')
+                resp = Response('open-door', 'mo_cua')
                 start_new_thread(send_back, (connection, resp))
             else:
                 resp = Response('failure', 'nhan_dang_sai')
@@ -55,37 +53,31 @@ def tcp_server():
 def home():
     return jsonify('Server running successfully!')
 
-@app.route('/open')
-def open():
-    conn = dic.get('connection')
-    resp = Response('success', 'mo cua')
-    start_new_thread(send_back, (conn, resp))
-    return jsonify('Open the door successfully!')
-
-@app.route('/close')
-def close():
-    conn = dic.get('connection')
-    resp = Response('fail', 'dong cua')
-    start_new_thread(send_back, (conn, resp))
-    return jsonify('Close the door successfully!')
-
 ############################## MOBILE'S USER API ##########################
 
 @app.route('/re-identify')
 def reRecognize():
     conn = dic.get('connection')
-    resp = Response('recognize', 'nhan dang lai')
+    resp = Response('re-identify', 'nhan dang lai')
     start_new_thread(send_back, (conn, resp))
     return jsonify('reIndentify request be sent')
 
 ############################## MOBILE'S ADMIN API ##########################
 
-@app.route('/save-feature-vector/<id>')
+# Add jwt
+@app.route('/manage/open-door')
+def open():
+    conn = dic.get('connection')
+    resp = Response('open-door', 'mo cua')
+    start_new_thread(send_back, (conn, resp))
+    return jsonify('Open the door successfully!')
+
+@app.route('/manage/save-feature-vector/<id>')
 def save_vector(id: str):
     len_vector = save_feature_vector(id)
     return jsonify(f'Save {len_vector} vector successfully!')
 
-@app.route('/re-train')
+@app.route('/manage/re-train')
 def retrain_model():
     mongo_2_json()
     train_acc, test_acc = retrain_svm()
