@@ -22,10 +22,10 @@ def thread_client(connection):
 
             image_stream.seek(0)
             image = Image.open(image_stream)
-            np_arr = np.array(image)
-            print(np_arr.shape)
-            # print('Image is %dx%d' % image.size)
-            # image.save('abc.jpeg')
+            # np_arr = np.array(image)
+            # print(np_arr.shape)
+            print('Image is %dx%d' % image.size)
+            image.save('abc.jpeg')
 
             # Face detection module
 
