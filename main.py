@@ -1,12 +1,13 @@
-from app import app, mongo
-from bson.json_util import dumps
-from bson.objectid import ObjectId
+from utils import (recognition, save_recognition_history,
+                   mongo_2_json, save_feature_vector, retrain_svm, send_back)
 from flask import jsonify, request
-import threading, socket, struct, io
-from _thread import *
-import numpy as np
 from Response import Response
-from PIL import Image
+from app import app
+from _thread import *
+import threading
+import socket
+import struct
+import io
 
 dic = dict()
 
@@ -19,31 +20,30 @@ def thread_client(connection):
 
             image_stream = io.BytesIO()
             image_stream.write(conn.read(image_len))
-
             image_stream.seek(0)
-            image = Image.open(image_stream)
-            # np_arr = np.array(image)
-            # print(np_arr.shape)
-            print('Image is %dx%d' % image.size)
-            image.save('abc.jpeg')
+            # image = Image.open(image_stream)
+            # # np_arr = np.array(image)
+            # # print(np_arr.shape)
+            # print('Image is %dx%d' % image.size)
+            # image.save('abc.jpeg')
 
             # Face detection module
 
-            # async: Call api to save data
-            resp = Response('save_data', 'Luu du lieu nhan dang')
-            # start_new_thread(call_api, ('post', resp))
+            # Face recognition module
+            identity, _ = recognition(image_stream.read())
 
-            # # async: send back to client
-            if face_detection(resp) == True:
-                resp = Response('success', 'mo_cua')
+            # async: send back to client
+            if identity != "UNKNOWN":
+                resp = Response('open-door', 'mo_cua')
                 start_new_thread(send_back, (connection, resp))
             else:
                 resp = Response('failure', 'nhan_dang_sai')
                 start_new_thread(send_back, (connection, resp))
+            # Goi API luu user request
+            start_new_thread(save_recognition_history, (identity, image_stream.read()))
         else:
             break
 
-#init tcp socket server
 def tcp_server():
     server_socket = socket.socket()
     server_socket.bind(('0.0.0.0', 9000))
@@ -54,69 +54,43 @@ def tcp_server():
         if connection:
             start_new_thread(thread_client, (connection, ))
 
-# Call api
-def call_api(method, response):
-    # Create indentify history object
+############################## MOBILE'S GENERAL API ##########################
 
-    # Convert to json/bson
-
-    # Call api to save data
-    pass
-
-# Call face detection module
-def face_detection(resp):
-    return True
-
-# Send back to client
-def send_back(connection: socket, resp: Response):
-    connection.sendall(resp.encode())
-
-# Example flask api
-@app.route('/')
+@app.route('/', methods=['GET'])
 def home():
     return jsonify('Server running successfully!')
 
-#GET: /users
-@app.route('/open')
+############################## MOBILE'S USER API ##########################
+
+@app.route('/re-identify')
+def reRecognize():
+    conn = dic.get('connection')
+    resp = Response('re-identify', 'nhan dang lai')
+    start_new_thread(send_back, (conn, resp))
+    return jsonify('reIndentify request be sent')
+
+############################## MOBILE'S ADMIN API ##########################
+
+# Add jwt
+@app.route('/manage/open-door')
 def open():
     conn = dic.get('connection')
-    resp = Response('success', 'mo cua')
+    resp = Response('open-door', 'mo cua')
     start_new_thread(send_back, (conn, resp))
     return jsonify('Open the door successfully!')
 
-# #GET: /users
-# @app.route('/users')
-# def users():
-#     conn = dic.get('connection')
-#     resp = Response('success', 'mo cua')
-#     start_new_thread(send_back, (conn, resp))
-#     # users = mongo.db.User.find()
-#     # return dumps(users)
-#     return jsonify('Open the door successfully!')
+@app.route('/manage/save-feature-vector/<id>')
+def save_vector(id: str):
+    len_vector = save_feature_vector(id)
+    return jsonify(f'Save {len_vector} vector successfully!')
 
-#GET: /users/1
-@app.route('/close')
-def close():
-    conn = dic.get('connection')
-    resp = Response('fail', 'dong cua')
-    start_new_thread(send_back, (conn, resp))
-    # user = mongo.db.User.find_one({'_id': ObjectId(id)})
-    # print(user)
-    # response = dumps(user)
-    # return response
-    return jsonify('Close the door successfully!')
+@app.route('/manage/re-train')
+def retrain_model():
+    mongo_2_json()
+    train_acc, test_acc = retrain_svm()
+    return jsonify(f'Retrain SVM with {train_acc} and {test_acc}!')
 
-#POST /create
-@app.route('/create', methods=['POST'])
-def create():
-    _json = request.json
-    _name = _json['name']
-    _address = _json['address']
-
-    id = mongo.db.User.insert_one({'name': _name, 'address': _address})
-    response = jsonify('Create successfully')
-    response.status_code = 200
-    return response    
+############################## FLASK INITIATION ##########################
 
 if __name__ == "__main__":
     t = threading.Thread(target=tcp_server)
