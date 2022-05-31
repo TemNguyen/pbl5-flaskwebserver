@@ -60,7 +60,12 @@ def bytes_to_cv2(img: bytes):
 def recognition(img: bytes):
     # ByteIO ->  .read()  -> bytes
     img = bytes_to_cv2(img)
-    identity, distance = fn.Get_People_Identity_SVM(img)[0]
+    identity = "NOFACE"
+    distance = -100000
+    try:
+        identity, distance = fn.Get_People_Identity_SVM(img)[0]
+    except:
+        pass
     return identity, distance
 
 

@@ -1,5 +1,6 @@
+import cv2
 from utils import (recognition, save_recognition_history,
-                   mongo_2_json, save_feature_vector, retrain_svm, send_back)
+                   mongo_2_json, save_feature_vector, retrain_svm, send_back, bytes_to_cv2)
 from flask import jsonify, request
 from Response import Response
 from app import app
@@ -8,11 +9,29 @@ import threading
 import socket
 import struct
 import io
+from PIL import Image
 
 dic = dict()
 
+def recognition_handle(connection, image_array):
+    for image in image_array:
+        identity, distance = recognition(image)
+        print(identity, distance)
+        # async: send back to client
+        if identity == "NOFACE":
+            return
+        elif identity != "UNKNOWN":
+            resp = Response('open-door', 'mo_cua')
+            start_new_thread(send_back, (connection, resp))
+        else:
+            resp = Response('failure', 'nhan_dang_sai')
+            start_new_thread(send_back, (connection, resp))
+        # Goi API luu history
+        # start_new_thread(save_recognition_history, (identity, image))
+
 def thread_client(connection):
     conn = connection.makefile('rb')
+    image_array = []
     while True:
         cnn = conn.read(4)
         if cnn != b'':
@@ -22,28 +41,12 @@ def thread_client(connection):
             image_stream.write(conn.read(image_len))
             
             image_stream.seek(0)
-            # image = Image.open(image_stream)
-            # # np_arr = np.array(image)
-            # # print(np_arr.shape)
-            # print('Image is %dx%d' % image.size)
-            # image.save('abc.jpeg')
+            image_array.append(image_stream.read())
+            print(len(image_array))
+            if (len(image_array) == 5):
+                start_new_thread(recognition_handle, (connection, image_array))
+                image_array = []
 
-            # Face detection module
-
-            # Face recognition module
-            identity, _ = recognition(image_stream.read())
-
-            # async: send back to client
-            if identity != "UNKNOWN":
-                resp = Response('open-door', 'mo_cua')
-                start_new_thread(send_back, (connection, resp))
-            else:
-                resp = Response('failure', 'nhan_dang_sai')
-                start_new_thread(send_back, (connection, resp))
-            # Goi API luu user request
-            start_new_thread(save_recognition_history, (identity, image_stream.read()))
-        else:
-            break
 
 def tcp_server():
     server_socket = socket.socket()
