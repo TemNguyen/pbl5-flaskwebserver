@@ -20,6 +20,7 @@ def thread_client(connection):
 
             image_stream = io.BytesIO()
             image_stream.write(conn.read(image_len))
+            
             image_stream.seek(0)
             # image = Image.open(image_stream)
             # # np_arr = np.array(image)
@@ -62,6 +63,7 @@ def home():
 
 ############################## MOBILE'S USER API ##########################
 
+# Add jwt
 @app.route('/re-identify')
 def reRecognize():
     conn = dic.get('connection')
