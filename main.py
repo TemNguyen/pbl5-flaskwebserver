@@ -12,11 +12,18 @@ import io
 from PIL import Image
 
 dic = dict()
+list_recognition = []
 
-def recognition_handle(connection, image_array):
-    for image in image_array:
-        identity, distance = recognition(image)
-        print(identity, distance)
+def recognition_handle(connection, image):
+    global list_recognition
+    
+    identity, distance = recognition(image)
+    print(identity, distance)
+    list_recognition.append(identity)
+
+    if (len(list_recognition) == 5):
+        identity = max(set(list_recognition), key = list_recognition.count)
+        print("-->" + identity)
         # async: send back to client
         if identity == "NOFACE":
             return
@@ -26,8 +33,12 @@ def recognition_handle(connection, image_array):
         else:
             resp = Response('failure', 'nhan_dang_sai')
             start_new_thread(send_back, (connection, resp))
-        # Goi API luu history
+        # # Goi API luu history
         # start_new_thread(save_recognition_history, (identity, image))
+
+        list_recognition.clear()
+        print(len(list_recognition))
+
 
 def thread_client(connection):
     conn = connection.makefile('rb')
@@ -41,11 +52,7 @@ def thread_client(connection):
             image_stream.write(conn.read(image_len))
             
             image_stream.seek(0)
-            image_array.append(image_stream.read())
-            print(len(image_array))
-            if (len(image_array) == 5):
-                start_new_thread(recognition_handle, (connection, image_array))
-                image_array = []
+            start_new_thread(recognition_handle, (connection, image_stream.read()))
 
 
 def tcp_server():
