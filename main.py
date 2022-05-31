@@ -1,5 +1,5 @@
 from utils import (recognition, save_recognition_history,
-                   mongo_2_json, save_feature_vector, retrain_svm, send_back)
+                   mongo_2_json, save_feature_vector, retrain_svm, send_back, bytes_to_cv2)
 from flask import jsonify, request
 from Response import Response
 from app import app
@@ -9,9 +9,33 @@ import socket
 import struct
 import io
 
-
 dic = dict()
+list_recognition = []
 
+def recognition_handle(connection, image):
+    global list_recognition
+    
+    identity, distance = recognition(image)
+    print(identity, distance)
+    list_recognition.append(identity)
+
+    if (len(list_recognition) == 5):
+        identity = max(set(list_recognition), key = list_recognition.count)
+        print("-->" + identity)
+        # async: send back to client
+        if identity == "NOFACE":
+            return
+        elif identity != "UNKNOWN":
+            resp = Response('open-door', 'mo_cua')
+            start_new_thread(send_back, (connection, resp))
+        else:
+            resp = Response('failure', 'nhan_dang_sai')
+            start_new_thread(send_back, (connection, resp))
+        # # Goi API luu history
+        # start_new_thread(save_recognition_history, (identity, image))
+
+        list_recognition.clear()
+        print(len(list_recognition))
 
 def thread_client(connection):
     conn = connection.makefile('rb')
@@ -22,22 +46,9 @@ def thread_client(connection):
 
             image_stream = io.BytesIO()
             image_stream.write(conn.read(image_len))
+            
             image_stream.seek(0)
-
-            # Face recognition module
-            identity, _ = recognition(image_stream.read())
-
-            # async: send back to client
-            if identity != "UNKNOWN":
-                resp = Response('success', 'mo_cua')
-                start_new_thread(send_back, (connection, resp))
-            else:
-                resp = Response('failure', 'nhan_dang_sai')
-                start_new_thread(send_back, (connection, resp))
-            # Goi API luu user request
-            start_new_thread(save_recognition_history, (identity, image_stream.read()))
-        else:
-            break
+            start_new_thread(recognition_handle, (connection, image_stream.read()))
 
 def tcp_server():
     server_socket = socket.socket()
@@ -55,37 +66,32 @@ def tcp_server():
 def home():
     return jsonify('Server running successfully!')
 
-@app.route('/open')
-def open():
-    conn = dic.get('connection')
-    resp = Response('success', 'mo cua')
-    start_new_thread(send_back, (conn, resp))
-    return jsonify('Open the door successfully!')
-
-@app.route('/close')
-def close():
-    conn = dic.get('connection')
-    resp = Response('fail', 'dong cua')
-    start_new_thread(send_back, (conn, resp))
-    return jsonify('Close the door successfully!')
-
 ############################## MOBILE'S USER API ##########################
 
+# Add jwt
 @app.route('/re-identify')
 def reRecognize():
     conn = dic.get('connection')
-    resp = Response('recognize', 'nhan dang lai')
+    resp = Response('re-identify', 'nhan dang lai')
     start_new_thread(send_back, (conn, resp))
     return jsonify('reIndentify request be sent')
 
 ############################## MOBILE'S ADMIN API ##########################
 
-@app.route('/save-feature-vector/<id>')
+# Add jwt
+@app.route('/manage/open-door')
+def open():
+    conn = dic.get('connection')
+    resp = Response('open-door', 'mo cua')
+    start_new_thread(send_back, (conn, resp))
+    return jsonify('Open the door successfully!')
+
+@app.route('/manage/save-feature-vector/<id>')
 def save_vector(id: str):
     len_vector = save_feature_vector(id)
     return jsonify(f'Save {len_vector} vector successfully!')
 
-@app.route('/re-train')
+@app.route('/manage/re-train')
 def retrain_model():
     mongo_2_json()
     train_acc, test_acc = retrain_svm()
