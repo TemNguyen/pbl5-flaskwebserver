@@ -20,6 +20,7 @@ def thread_client(connection):
 
             image_stream = io.BytesIO()
             image_stream.write(conn.read(image_len))
+            
             image_stream.seek(0)
 
             # Face recognition module
@@ -55,6 +56,7 @@ def home():
 
 ############################## MOBILE'S USER API ##########################
 
+# Add jwt
 @app.route('/re-identify')
 def reRecognize():
     conn = dic.get('connection')
