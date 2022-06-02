@@ -1,5 +1,5 @@
-from utils import (recognition, save_recognition_history,
-                   mongo_2_json, save_feature_vector, retrain_svm, send_back, bytes_to_cv2)
+from utils import (recognition, save_recognition_history, save_reIndentify_request,
+                   mongo_2_json, save_feature_vector, retrain_svm, send_back)
 from flask import jsonify, request
 from Response import Response
 from app import app
@@ -11,15 +11,17 @@ import io
 
 dic = dict()
 list_recognition = []
+reIndentify_userId = ''
 
 def recognition_handle(connection, image):
     global list_recognition
+    global reIndentify_userId
     
     identity, distance = recognition(image)
     print(identity, distance)
     list_recognition.append(identity)
 
-    if (len(list_recognition) == 5):
+    if (len(list_recognition) >= 5):
         identity = max(set(list_recognition), key = list_recognition.count)
         print("-->" + identity)
         # New thread: Send command to Raspberry Pi
@@ -31,11 +33,16 @@ def recognition_handle(connection, image):
         else:
             resp = Response('failure', 'nhan_dang_sai')
             start_new_thread(send_back, (connection, resp))
+
+        list_recognition = []
+
         # New thread: Call API to save recognition history
         start_new_thread(save_recognition_history, (identity, image))
 
-        list_recognition.clear()
-        print(len(list_recognition))
+        if (reIndentify_userId != ''):
+            start_new_thread(save_reIndentify_request, (reIndentify_userId, image))
+            reIndentify_userId = ''
+
 
 def thread_client(connection):
     conn = connection.makefile('rb')
@@ -69,10 +76,12 @@ def home():
 ############################## MOBILE'S USER API ##########################
 
 # Add jwt
-@app.route('/re-identify')
-def reRecognize():
+@app.route('/re-identify/<id>')
+def reRecognize(id: str):
+    global reIndentify_userId
     conn = dic.get('connection')
     resp = Response('re-identify', 'nhan dang lai')
+    reIndentify_userId = id
     start_new_thread(send_back, (conn, resp))
     return jsonify('reIndentify request be sent')
 
