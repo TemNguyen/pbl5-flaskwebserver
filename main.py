@@ -9,7 +9,6 @@ import threading
 import socket
 import struct
 import io
-from PIL import Image
 
 dic = dict()
 list_recognition = []
@@ -38,7 +37,6 @@ def recognition_handle(connection, image):
 
         list_recognition.clear()
 
-
 def thread_client(connection):
     conn = connection.makefile('rb')
     image_array = []
@@ -52,7 +50,6 @@ def thread_client(connection):
             
             image_stream.seek(0)
             start_new_thread(recognition_handle, (connection, image_stream.read()))
-
 
 def tcp_server():
     server_socket = socket.socket()
