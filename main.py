@@ -22,7 +22,7 @@ def recognition_handle(connection, image):
     if (len(list_recognition) == 5):
         identity = max(set(list_recognition), key = list_recognition.count)
         print("-->" + identity)
-        # async: send back to client
+        # New thread: Send command to Raspberry Pi
         if identity == "NOFACE":
             return
         elif identity != "UNKNOWN":
@@ -31,8 +31,8 @@ def recognition_handle(connection, image):
         else:
             resp = Response('failure', 'nhan_dang_sai')
             start_new_thread(send_back, (connection, resp))
-        # # Goi API luu history
-        # start_new_thread(save_recognition_history, (identity, image))
+        # New thread: Call API to save recognition history
+        start_new_thread(save_recognition_history, (identity, image))
 
         list_recognition.clear()
         print(len(list_recognition))
