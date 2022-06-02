@@ -37,7 +37,6 @@ def recognition_handle(connection, image):
         # start_new_thread(save_recognition_history, (identity, image))
 
         list_recognition.clear()
-        print(len(list_recognition))
 
 
 def thread_client(connection):
