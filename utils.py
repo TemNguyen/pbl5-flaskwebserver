@@ -93,6 +93,20 @@ def save_recognition_history(userid: str, img: bytes):
     requests.post(config["api_url"]+"history", json=user_history)
 
 
+def save_reIndentify_request(userid: str, img: bytes):
+    # Bytes -> base64
+    img = base64.b64encode(img)
+    imgBS64 = img.decode("ascii")
+    img_url = save_img_to_cloudinary(imgBS64)
+    user_reIndentify = {
+        "userid": userid,
+        "timestamps": str(datetime.now()),
+        "imageUri": img_url,
+        "response": "False",
+    }
+    requests.post(config["api_url"]+"userRequest", json=user_reIndentify)
+
+
 ############################## SVM ##########################
 def retrain_svm():
     svm = SVM()
