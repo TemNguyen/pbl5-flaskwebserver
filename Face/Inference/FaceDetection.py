@@ -2,6 +2,13 @@ from mtcnn import MTCNN
 import cv2
 
 
+def area(x, y, xw, yh):
+    """
+        Hàm tính diện tích 1 khung HCN
+        """
+    return (xw-x)*(yh-y)
+
+
 class FaceDetection():
     def __init__(self):
         # Sử dụng mạng MTCNN
@@ -37,12 +44,24 @@ class FaceDetection():
 
     def Crop_Face(self, image, rec):
         """
-        Hàm trả về ma trận của khuôn mặt detect được
+        Hàm trả về ma trận của khuôn mặt detect được có diện tích lớn nhất
         image : ảnh
         rec : list chứa tọa độ HCN
         """
         img = image.copy()
-        faces = []
-        for x1, y1, x2, y2 in rec:
-            faces.append(img[y1:y2, x1:x2])
-        return faces
+
+        # Chỉ lấy ra khung HCN có diện tích lớn nhất
+        # Ứng với khuôn mặt gần Camera nhất
+        max_index = -1
+        max_area = 0
+        for i in range(len(rec)):
+            x, y, xw, yh = rec[i]
+            rec_area = area(x, y, xw, yh)
+            if rec_area > max_area:
+                max_index = i
+                max_area = rec_area
+        # Tọa độ và ma trận hình ảnh khuôn mặt
+        x1, y1, x2, y2 = rec[max_index]
+        # Trả về list trong list để không phá vỡ cấu trúc của các API đã viết
+        # và dễ dàng mở rộng hơn thành bài toàn nhận diện nhiều khuôn mặt
+        return [img[y1:y2, x1:x2]]
