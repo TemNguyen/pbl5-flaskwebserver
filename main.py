@@ -1,5 +1,6 @@
 from utils import (recognition, save_recognition_history, save_reIndentify_request,
                    mongo_2_json, save_feature_vector, retrain_svm, send_back)
+from ResponseModel import ResponseModel
 from flask import jsonify, request
 from Response import Response
 from app import app
@@ -71,7 +72,14 @@ def tcp_server():
 
 @app.route('/', methods=['GET'])
 def home():
-    return jsonify('Server running successfully!')
+    return ResponseModel("Server running successfully.", 200, "success", False)
+
+@app.route('/open-door')
+def open():
+    conn = dic.get('connection')
+    resp = Response('open-door', 'mo cua')
+    start_new_thread(send_back, (conn, resp))
+    return ResponseModel("Open the door successfully.", 200, "success", False)
 
 ############################## MOBILE'S USER API ##########################
 
@@ -83,28 +91,21 @@ def reRecognize(id: str):
     resp = Response('re-identify', 'nhan dang lai')
     reIndentify_userId = id
     start_new_thread(send_back, (conn, resp))
-    return jsonify('reIndentify request be sent')
+    return ResponseModel("reIndentify request be sent.", 200, "success", False)
 
 ############################## MOBILE'S ADMIN API ##########################
 
 # Add jwt
-@app.route('/manage/open-door')
-def open():
-    conn = dic.get('connection')
-    resp = Response('open-door', 'mo cua')
-    start_new_thread(send_back, (conn, resp))
-    return jsonify('Open the door successfully!')
-
 @app.route('/manage/save-feature-vector/<id>')
 def save_vector(id: str):
     len_vector = save_feature_vector(id)
-    return jsonify(f'Save {len_vector} vector successfully!')
+    return ResponseModel(f'Save {len_vector} vector successfully!', 200, "success", False)
 
 @app.route('/manage/re-train')
 def retrain_model():
     mongo_2_json()
     train_acc, test_acc = retrain_svm()
-    return jsonify(f'Retrain SVM with {train_acc} and {test_acc}!')
+    return ResponseModel(f'Retrain SVM with {train_acc} and {test_acc}!', 200, "success", False)
 
 ############################## FLASK INITIATION ##########################
 
